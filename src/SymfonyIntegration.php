@@ -98,7 +98,7 @@ class SymfonyIntegration implements HttpIntegrationInterface
     /**
      * @inheritdoc
      */
-    public function processRequest(array $ctx, string $body): array
+    public function processRequest(array $ctx, $body): array
     {
         $this->_symfonyRequest = $this->buildSymfonyRequest($ctx, $body);
         $this->_symfonyResponse = $this->_kernel->handle($this->_symfonyRequest);
@@ -109,12 +109,12 @@ class SymfonyIntegration implements HttpIntegrationInterface
     /**
      * Building Symfony request based of RR request data.
      *
-     * @param array  $ctx  RR request context.
-     * @param string $body Body of RR request.
+     * @param array       $ctx  RR request context.
+     * @param string|null $body Body of RR request.
      *
      * @return Request Symfony request.
      */
-    private function buildSymfonyRequest(array $ctx, string $body): Request
+    private function buildSymfonyRequest(array $ctx, $body): Request
     {
         $_SERVER = $this->configureServer($ctx);
 
