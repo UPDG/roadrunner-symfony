@@ -125,7 +125,7 @@ class SymfonyIntegration implements HttpIntegrationInterface
             $ctx['parsed'] ? json_decode($body, true) : [],
             $ctx['attributes'],
             $ctx['cookies'],
-            $this->prepareFiles($ctx['uploads']),
+            $ctx['uploads'] ? $this->prepareFiles($ctx['uploads']) : [],
             $_SERVER,
             $body
         );
