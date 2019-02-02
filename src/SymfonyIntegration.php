@@ -85,6 +85,17 @@ class SymfonyIntegration implements HttpIntegrationInterface
     public function afterRequest()
     {
         $this->_kernel->terminate($this->_symfonyRequest, $this->_symfonyResponse);
+
+        if (PHP_SESSION_ACTIVE === \session_status()) {
+            \session_write_close();
+
+            \session_id('');
+            \session_unset();
+        }
+
+        if ($this->_symfonyRequest->hasSession()) {
+            $this->_symfonyRequest->getSession()->setId('');
+        }
     }
 
     /**
@@ -102,6 +113,21 @@ class SymfonyIntegration implements HttpIntegrationInterface
     {
         $this->_symfonyRequest = $this->buildSymfonyRequest($ctx, $body);
         $this->_symfonyResponse = $this->_kernel->handle($this->_symfonyRequest);
+
+        if (!$this->_symfonyRequest->cookies->has(\session_name())) {
+            $cookie_options = $this->_kernel->getContainer()->getParameter('session.storage.options');
+            $this->_symfonyResponse->headers->setCookie(new Cookie(
+                \session_name(),
+                \session_id(),
+                $cookie_options['cookie_lifetime'] ?? 0,
+                $cookie_options['cookie_path'] ?? '/',
+                $cookie_options['cookie_domain'] ?? '',
+                ($cookie_options['cookie_secure'] ?? 'auto') === 'auto' ? $this->_symfonyRequest->isSecure() : (bool)($cookie_options['cookie_secure'] ?? 'auto'),
+                $cookie_options['cookie_httponly'] ?? true,
+                false,
+                $cookie_options['cookie_samesite'] ?? null
+            ));
+        }
 
         return $this->buildResponse($this->_symfonyResponse);
     }
