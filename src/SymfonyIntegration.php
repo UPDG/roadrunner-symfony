@@ -115,17 +115,18 @@ class SymfonyIntegration implements HttpIntegrationInterface
         $this->_symfonyResponse = $this->_kernel->handle($this->_symfonyRequest);
 
         if (!$this->_symfonyRequest->cookies->has(\session_name())) {
-            $cookie_options = $this->_kernel->getContainer()->getParameter('session.storage.options');
+            $container = $this->_kernel->getContainer();
+            $cookieOptions = $container->hasParameter('session.storage.options') ? $container->getParameter('session.storage.options') : [];
             $this->_symfonyResponse->headers->setCookie(new Cookie(
                 \session_name(),
                 \session_id(),
-                $cookie_options['cookie_lifetime'] ?? 0,
-                $cookie_options['cookie_path'] ?? '/',
-                $cookie_options['cookie_domain'] ?? '',
-                ($cookie_options['cookie_secure'] ?? 'auto') === 'auto' ? $this->_symfonyRequest->isSecure() : (bool)($cookie_options['cookie_secure'] ?? 'auto'),
-                $cookie_options['cookie_httponly'] ?? true,
+                $cookieOptions['cookie_lifetime'] ?? 0,
+                $cookieOptions['cookie_path'] ?? '/',
+                $cookieOptions['cookie_domain'] ?? '',
+                ($cookieOptions['cookie_secure'] ?? 'auto') === 'auto' ? $this->_symfonyRequest->isSecure() : (bool)($cookieOptions['cookie_secure'] ?? 'auto'),
+                $cookieOptions['cookie_httponly'] ?? true,
                 false,
-                $cookie_options['cookie_samesite'] ?? null
+                $cookieOptions['cookie_samesite'] ?? null
             ));
         }
 
