@@ -115,11 +115,13 @@ class SymfonyIntegration implements HttpIntegrationInterface
         $this->_symfonyRequest = $this->buildSymfonyRequest($ctx, $body);
         $this->_symfonyResponse = $this->_kernel->handle($this->_symfonyRequest);
 
-        if (!$this->_symfonyRequest->cookies->has(\session_name())) {
+        $sessionName = \session_name();
+
+        if (!$this->_symfonyRequest->cookies->has($sessionName)) {
             $container = $this->_kernel->getContainer();
             $cookieOptions = $container->hasParameter('session.storage.options') ? $container->getParameter('session.storage.options') : [];
             $this->_symfonyResponse->headers->setCookie(new Cookie(
-                \session_name(),
+                $sessionName,
                 \session_id(),
                 $cookieOptions['cookie_lifetime'] ?? 0,
                 $cookieOptions['cookie_path'] ?? '/',
@@ -177,28 +179,26 @@ class SymfonyIntegration implements HttpIntegrationInterface
         $body = '';
         if ($response instanceof BinaryFileResponse) {
             $body = file_get_contents($response->getFile()->getPathname());
+        } elseif ($response instanceof StreamedResponse) {
+            ob_start(static function ($buffer) use (&$body) {
+                $body .= $buffer;
+
+                return '';
+            });
+
+            $response->sendContent();
+            ob_end_clean();
         } else {
-            if ($response instanceof StreamedResponse) {
-                ob_start(function ($buffer) use (&$body) {
-                    $body .= $buffer;
-
-                    return '';
-                });
-
-                $response->sendContent();
-                ob_end_clean();
-            } else {
-                $body = $response->getContent();
-            }
+            $body = $response->getContent();
         }
 
         $headers = $response->headers->all();
-        if (!isset($headers['Set-Cookie']) && !isset($headers['set-cookie'])) {
+        if (!isset($headers['Set-Cookie'], $headers['set-cookie'])) {
             $cookies = $response->headers->getCookies();
             if (!empty($cookies)) {
                 $headers['Set-Cookie'] = [];
                 foreach ($cookies as $cookie) {
-                    $headers['Set-Cookie'][] = $cookie->__toString();
+                    $headers['Set-Cookie'][] = (string) $cookie;
                 }
             }
         }
@@ -239,7 +239,7 @@ class SymfonyIntegration implements HttpIntegrationInterface
         $server['HTTP_HOST'] = $server['SERVER_NAME'] . ':' . $server['SERVER_PORT'];
         foreach ($ctx['headers'] as $key => $value) {
             $key = strtoupper(str_replace('-', '_', $key));
-            if (\in_array($key, ['CONTENT_TYPE', 'CONTENT_LENGTH'])) {
+            if (\in_array($key, ['CONTENT_TYPE', 'CONTENT_LENGTH'], true)) {
                 $server[$key] = implode(', ', $value);
             } else {
                 $server['HTTP_' . $key] = implode(', ', $value);
@@ -255,7 +255,7 @@ class SymfonyIntegration implements HttpIntegrationInterface
      * @param array $uploads Array of files from RR request
      * @return array $_FILES style array
      */
-    private function prepareFiles(array $uploads)
+    private function prepareFiles(array $uploads): array
     {
         foreach ($uploads as $key => &$file) {
             $file['tmp_name'] = $file['tmpName'];
@@ -272,7 +272,7 @@ class SymfonyIntegration implements HttpIntegrationInterface
      * @param string $path
      * @return string
      */
-    private function filterPath($path)
+    private function filterPath(string $path): string
     {
         $path = preg_replace_callback(
             '/(?:[^a-zA-Z0-9_\-\.~\pL)(:@&=\+\$,\/;%]+|%(?![A - Fa - f0 - 9]{2}))/u',
@@ -295,14 +295,14 @@ class SymfonyIntegration implements HttpIntegrationInterface
     }
 
     /**
-     * Filter a query string to ensure it is propertly encoded.
+     * Filter a query string to ensure it is properly encoded.
      *
      * Ensures that the values in the query string are properly urlencoded.
      *
      * @param string $query
      * @return string
      */
-    private function filterQuery($query)
+    private function filterQuery(string $query): string
     {
         if ('' !== $query && strpos($query, '?') === 0) {
             $query = substr($query, 1);
@@ -310,7 +310,7 @@ class SymfonyIntegration implements HttpIntegrationInterface
 
         $parts = explode('&', $query);
         foreach ($parts as $index => $part) {
-            list($key, $value) = $this->splitQueryValue($part);
+            [$key, $value] = $this->splitQueryValue($part);
             if ($value === null) {
                 $parts[$index] = $this->filterQueryOrFragment($key);
                 continue;
@@ -331,7 +331,7 @@ class SymfonyIntegration implements HttpIntegrationInterface
      * @param string $value
      * @return array A value with exactly two elements, key and value
      */
-    private function splitQueryValue($value)
+    private function splitQueryValue(string $value): array
     {
         $data = explode(' = ', $value, 2);
         if (!isset($data[1])) {
@@ -346,7 +346,7 @@ class SymfonyIntegration implements HttpIntegrationInterface
      * @param string $value
      * @return string
      */
-    private function filterQueryOrFragment($value)
+    private function filterQueryOrFragment(string $value): string
     {
         return preg_replace_callback(
             ' / (?:[^a-zA-Z0-9_\-\.~\pL!\$ & \'\(\)\*\+,;=%:@\/\?]+|%(?![A-Fa-f0-9]{2}))/u',
@@ -361,7 +361,7 @@ class SymfonyIntegration implements HttpIntegrationInterface
      * @param array $matches
      * @return string
      */
-    private function urlEncodeChar(array $matches)
+    private function urlEncodeChar(array $matches): string
     {
         return rawurlencode($matches[0]);
     }
