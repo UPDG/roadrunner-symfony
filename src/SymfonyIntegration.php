@@ -3,6 +3,7 @@
 namespace updg\roadrunner\symfony;
 
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -152,7 +153,7 @@ class SymfonyIntegration implements HttpIntegrationInterface
             $requestData = $data;
         }
 
-        $request = new Request(
+        return new Request(
             $query,
             $ctx['parsed'] ? json_decode($body, true) : $requestData,
             $ctx['attributes'],
@@ -161,8 +162,6 @@ class SymfonyIntegration implements HttpIntegrationInterface
             $_SERVER,
             $body
         );
-
-        return $request;
     }
 
     /**
